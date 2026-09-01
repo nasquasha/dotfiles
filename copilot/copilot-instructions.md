@@ -7,7 +7,7 @@ that materially changes the result, ask before proceeding.
 
 ## Working with me
 
-- My GitHub handle is `@tmelliottjr`.
+- My GitHub handle is `@nasquasha`.
 - Optimize for correctness and completeness over speed.
 - Ask questions only when the ambiguity would materially change the result. Otherwise
   make a reasonable decision, proceed, and note it.
@@ -69,8 +69,8 @@ that materially changes the result, ask before proceeding.
 
 ## Git and pull requests
 
-- Prefix branches with `tmelliottjr/` followed by a kebab-case verb-noun name, such as
-  `tmelliottjr/fix-token-refresh`.
+- Prefix branches with `nasquasha/` followed by a kebab-case verb-noun name, such as
+  `nasquasha/fix-token-refresh`.
 - Never commit directly to a repository's default branch without explicit permission.
 - Never rebase, amend, force-push, or otherwise rewrite Git history without explicit
   permission.
