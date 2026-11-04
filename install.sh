@@ -1,11 +1,76 @@
 #!/usr/bin/env bash
-# Installs personal Copilot instructions as a VS Code user-level "instructions" file so
-# they apply in every workspace/codespace, not just this repository.
+# Installs personal Copilot instructions for VS Code and the 1up MCP server for Copilot CLI.
 #
 # GitHub Codespaces automatically runs this script (from the dotfiles repo configured in
 # https://github.com/settings/codespaces) after the container is created. It can also be
 # run manually inside any codespace or Remote-* connection.
 set -euo pipefail
+
+register_1up_mcp() {
+  local bin_path="$1"
+  local config="$HOME/.copilot/mcp-config.json"
+  local config_json='{}'
+  local tmp
+
+  if [[ -s "$config" ]]; then
+    config_json="$(cat "$config")"
+  fi
+  mkdir -p "$HOME/.copilot"
+  tmp="$(mktemp "$HOME/.copilot/mcp-config.json.XXXXXX")"
+
+  # A digit-prefixed server key produces tool names rejected by some providers.
+  if jq --arg cmd "$bin_path" '
+      .mcpServers //= {}
+      | del(.mcpServers["1up"])
+      | .mcpServers.oneup = {
+          type: "local",
+          command: $cmd,
+          args: [],
+          env: { GITHUB_TOKEN: "${GITHUB_TOKEN}" },
+          tools: ["*"]
+        }
+    ' <<< "$config_json" > "$tmp"; then
+    mv "$tmp" "$config"
+    echo "install.sh: registered 1up MCP server in $config"
+  else
+    rm -f "$tmp"
+    echo "install.sh: could not update $config; existing configuration preserved" >&2
+    return 1
+  fi
+}
+
+install_1up() {
+  local dependency
+  for dependency in go jq; do
+    if ! command -v "$dependency" >/dev/null 2>&1; then
+      echo "install.sh: $dependency not found, skipping 1up MCP server" >&2
+      return
+    fi
+  done
+
+  local goprivate gobin
+  goprivate="$(go env GOPRIVATE)"
+  case ",$goprivate," in
+    *",github.com/github/*,"*) ;;
+    *)
+      # Private modules must bypass the public Go proxy and checksum database.
+      go env -w GOPRIVATE="${goprivate:+$goprivate,}github.com/github/*"
+      ;;
+  esac
+
+  gobin="$(go env GOBIN)"
+  if [[ -z "$gobin" ]]; then
+    gobin="$(go env GOPATH)"
+    gobin="${gobin%%:*}/bin"
+  fi
+
+  echo "install.sh: installing 1up MCP server"
+  if go install github.com/github/1up@latest; then
+    register_1up_mcp "$gobin/1up"
+  else
+    echo "install.sh: 1up installation failed; check Go and access to github/1up" >&2
+  fi
+}
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source_md="$repo_dir/copilot/copilot-instructions.md"
@@ -57,3 +122,5 @@ if [[ "$installed" -eq 0 ]]; then
   } > "$dest"
   echo "install.sh: installed Copilot instructions to $dest"
 fi
+
+install_1up
